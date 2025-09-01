@@ -39,12 +39,15 @@ public class OrderService {
       Order existingOrder = orderMapper.findByUserIdAndVoucherId(userId, voucherId);
       if (existingOrder != null) {
         log.warn("订单已存在，跳过创建 - 用户: {}, 优惠券: {}", userId, voucherId);
-        // 如果订单已存在且状态为处理中，更新为成功
-        if (existingOrder.getStatus() == 0) {
-          existingOrder.setStatus(1);
-          existingOrder.setUpdateTime(LocalDateTime.now());
-          orderMapper.updateById(existingOrder);
-          seckillService.orderSuccess(orderId);
+        // 如果订单已存在且状态为处理中，更新为成功（状态机模式）
+        if (existingOrder.getStatus() == Order.STATUS_PROCESSING) {
+          boolean updated = updateOrderStatusWithPreviousCheck(
+              existingOrder.getId(),
+              Order.STATUS_SUCCESS,
+              Order.STATUS_PROCESSING);
+          if (updated) {
+            seckillService.orderSuccess(orderId);
+          }
         }
         return true;
       }
@@ -54,23 +57,28 @@ public class OrderService {
       order.setId(orderId);
       order.setUserId(userId);
       order.setVoucherId(voucherId);
-      order.setStatus(0); // 处理中
+      order.setStatus(Order.STATUS_PROCESSING); // 处理中
       order.setCreateTime(LocalDateTime.now());
       order.setUpdateTime(LocalDateTime.now());
 
       int result = orderMapper.insert(order);
 
       if (result > 0) {
-        // 订单创建成功，更新状态为成功
-        order.setStatus(1);
-        order.setUpdateTime(LocalDateTime.now());
-        orderMapper.updateById(order);
+        // 订单创建成功，使用状态机更新为成功状态
+        boolean updated = updateOrderStatusWithPreviousCheck(
+            orderId,
+            Order.STATUS_SUCCESS,
+            Order.STATUS_PROCESSING);
 
-        // 通知订单成功
-        seckillService.orderSuccess(orderId);
-
-        log.info("订单创建成功 - 用户: {}, 优惠券: {}, 订单: {}", userId, voucherId, orderId);
-        return true;
+        if (updated) {
+          // 通知订单成功
+          seckillService.orderSuccess(orderId);
+          log.info("订单创建成功 - 用户: {}, 优惠券: {}, 订单: {}", userId, voucherId, orderId);
+          return true;
+        } else {
+          log.error("订单状态更新失败 - 用户: {}, 优惠券: {}, 订单: {}", userId, voucherId, orderId);
+          return false;
+        }
       } else {
         log.error("订单创建失败 - 用户: {}, 优惠券: {}, 订单: {}", userId, voucherId, orderId);
         return false;
@@ -104,7 +112,38 @@ public class OrderService {
   }
 
   /**
-   * 更新订单状态
+   * 使用状态机模式更新订单状态（带前置状态校验）
+   * 这是幂等性保证的关键方法
+   * 
+   * @param orderId               订单ID
+   * @param newStatus             新状态
+   * @param expectedCurrentStatus 期望的当前状态
+   * @return 是否更新成功
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public boolean updateOrderStatusWithPreviousCheck(Long orderId, Integer newStatus, Integer expectedCurrentStatus) {
+    try {
+      // 使用状态机模式更新：UPDATE order SET status = newStatus WHERE id = orderId AND status =
+      // expectedCurrentStatus
+      int result = orderMapper.updateStatusWithPreviousCheck(orderId, newStatus, expectedCurrentStatus);
+
+      if (result > 0) {
+        log.info("📋 订单状态机更新成功 - 订单: {}, 状态: {} -> {}", orderId,
+            getStatusName(expectedCurrentStatus), getStatusName(newStatus));
+        return true;
+      } else {
+        log.warn("📋 订单状态机更新失败 - 订单: {}, 期望状态: {}, 目标状态: {} (可能状态已变更)",
+            orderId, getStatusName(expectedCurrentStatus), getStatusName(newStatus));
+        return false;
+      }
+    } catch (Exception e) {
+      log.error("📋 状态机更新订单状态异常 - 订单: {}, 目标状态: {}", orderId, getStatusName(newStatus), e);
+      throw e;
+    }
+  }
+
+  /**
+   * 更新订单状态（不推荐直接使用，优先使用状态机方法）
    * 
    * @param orderId 订单ID
    * @param status  新状态
@@ -121,15 +160,36 @@ public class OrderService {
       int result = orderMapper.updateById(order);
 
       if (result > 0) {
-        log.info("订单状态更新成功 - 订单: {}, 状态: {}", orderId, status);
+        log.info("订单状态更新成功 - 订单: {}, 状态: {}", orderId, getStatusName(status));
         return true;
       } else {
-        log.warn("订单状态更新失败 - 订单: {}, 状态: {}", orderId, status);
+        log.warn("订单状态更新失败 - 订单: {}, 状态: {}", orderId, getStatusName(status));
         return false;
       }
     } catch (Exception e) {
-      log.error("更新订单状态异常 - 订单: {}, 状态: {}", orderId, status, e);
+      log.error("更新订单状态异常 - 订单: {}, 状态: {}", orderId, getStatusName(status), e);
       throw e;
+    }
+  }
+
+  /**
+   * 获取状态名称（用于日志显示）
+   * 
+   * @param status 状态码
+   * @return 状态名称
+   */
+  private String getStatusName(Integer status) {
+    if (status == null)
+      return "NULL";
+    switch (status) {
+      case Order.STATUS_PROCESSING:
+        return "处理中";
+      case Order.STATUS_SUCCESS:
+        return "成功";
+      case Order.STATUS_FAILED:
+        return "失败";
+      default:
+        return "未知(" + status + ")";
     }
   }
 }

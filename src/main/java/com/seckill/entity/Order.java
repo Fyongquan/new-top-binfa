@@ -12,6 +12,13 @@ import java.time.LocalDateTime;
 public class Order {
 
   /**
+   * 订单状态常量
+   */
+  public static final int STATUS_PROCESSING = 0; // 处理中
+  public static final int STATUS_SUCCESS = 1; // 成功
+  public static final int STATUS_FAILED = 2; // 失败
+
+  /**
    * 订单ID
    */
   private Long id;

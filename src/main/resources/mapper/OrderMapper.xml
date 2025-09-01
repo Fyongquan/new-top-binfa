@@ -89,6 +89,15 @@
         WHERE user_id = #{userId} AND voucher_id = #{voucherId}
   </select>
 
+  <!-- 状态机模式更新订单状态（带前置状态校验） -->
+  <update id="updateStatusWithPreviousCheck">
+        UPDATE orders
+        SET status = #{newStatus},
+            update_time = NOW()
+        WHERE id = #{orderId}
+          AND status = #{expectedCurrentStatus}
+  </update>
+
   <!-- 批量更新订单状态 -->
   <update id="batchUpdateStatus">
         UPDATE orders

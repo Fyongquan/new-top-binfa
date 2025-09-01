@@ -1,6 +1,7 @@
 package com.seckill.mq.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.seckill.config.RabbitMQConfig;
 import com.seckill.dto.OrderMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
@@ -25,8 +26,7 @@ public class OrderProducer {
   @Resource
   private ObjectMapper objectMapper;
 
-  private static final String ORDER_EXCHANGE = "seckill.order.exchange";
-  private static final String ORDER_ROUTING_KEY = "seckill.order.create";
+  // 使用新的队列配置常量
 
   /**
    * 初始化RabbitTemplate配置
@@ -55,7 +55,8 @@ public class OrderProducer {
       CorrelationData correlationData = new CorrelationData(orderMessage.getMessageId());
 
       // 发送消息，带上correlationData
-      rabbitTemplate.convertAndSend(ORDER_EXCHANGE, ORDER_ROUTING_KEY, orderMessage, correlationData);
+      rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_ROUTING_KEY,
+          orderMessage, correlationData);
 
       log.info("订单消息已投递到MQ - 消息ID: {}, 用户: {}, 优惠券: {}, 订单: {}",
           orderMessage.getMessageId(), orderMessage.getUserId(),
@@ -76,11 +77,12 @@ public class OrderProducer {
    */
   public void sendDelayRetryMessage(OrderMessage orderMessage, int delaySeconds) {
     try {
-      orderMessage.incrementRetry();
-
       // 发送到延迟队列
+      CorrelationData correlationData = new CorrelationData(
+          orderMessage.getMessageId() + "_retry_" + orderMessage.getRetryCount());
+
       rabbitTemplate.convertAndSend(
-          "seckill.order.delay.exchange",
+          RabbitMQConfig.DELAY_EXCHANGE,
           "seckill.order.delay",
           orderMessage,
           message -> {
@@ -88,7 +90,7 @@ public class OrderProducer {
             return message;
           });
 
-      log.info("延迟重试消息已发送 - 消息ID: {}, 订单: {}, 重试次数: {}, 延迟: {}秒",
+      log.info("💫 延迟重试消息已发送 - 消息ID: {}, 订单: {}, 重试次数: {}, 延迟: {}秒",
           orderMessage.getMessageId(), orderMessage.getOrderId(),
           orderMessage.getRetryCount(), delaySeconds);
 

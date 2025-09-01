@@ -88,30 +88,50 @@ public class OrderConsumer {
   }
 
   /**
-   * 处理延迟重试消息
+   * 处理死信队列消息
    * 
    * @param orderMessage 订单消息
    * @param channel      消息通道
    * @param deliveryTag  消息标签
    */
-  @RabbitListener(queues = "seckill.order.retry.queue")
-  public void handleRetryMessage(@Payload OrderMessage orderMessage,
+  @RabbitListener(queues = "seckill.order.dlx.queue")
+  public void handleDeadLetterMessage(@Payload OrderMessage orderMessage,
       Channel channel,
       @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
 
-    log.info("处理重试消息 - 消息ID: {}, 订单: {}, 重试次数: {}",
+    log.info("📮 收到死信队列消息 - 消息ID: {}, 订单: {}, 重试次数: {}",
         orderMessage.getMessageId(), orderMessage.getOrderId(), orderMessage.getRetryCount());
 
-    // 重新投递到主队列处理
     try {
-      orderProducer.sendOrderMessage(orderMessage);
-      channel.basicAck(deliveryTag, false);
+      if (orderMessage.canRetry()) {
+        // 可以重试，发送到延迟重试队列
+        orderMessage.incrementRetry();
+        orderProducer.sendDelayRetryMessage(orderMessage, calculateRetryDelay(orderMessage.getRetryCount()));
+
+        log.info("💫 死信消息转入延迟重试 - 消息ID: {}, 重试次数: {}",
+            orderMessage.getMessageId(), orderMessage.getRetryCount());
+
+        channel.basicAck(deliveryTag, false);
+      } else {
+        // 超过最大重试次数，执行库存回滚
+        seckillService.rollbackStock(
+            orderMessage.getVoucherId(),
+            orderMessage.getUserId(),
+            orderMessage.getOrderId());
+
+        notifyAdministrator(orderMessage);
+        processedMessages.add(orderMessage.getMessageId());
+        channel.basicAck(deliveryTag, false);
+
+        log.error("💀 消息超过最大重试次数，已执行库存回滚 - 消息ID: {}, 订单: {}",
+            orderMessage.getMessageId(), orderMessage.getOrderId());
+      }
     } catch (Exception e) {
-      log.error("重试消息处理失败 - 消息ID: {}", orderMessage.getMessageId(), e);
+      log.error("💥 处理死信消息异常 - 消息ID: {}", orderMessage.getMessageId(), e);
       try {
         channel.basicNack(deliveryTag, false, false);
       } catch (IOException ioException) {
-        log.error("消息Nack失败", ioException);
+        log.error("死信消息Nack失败", ioException);
       }
     }
   }
@@ -181,6 +201,36 @@ public class OrderConsumer {
         return 30;
       default:
         return 60;
+    }
+  }
+
+  /**
+   * 通知管理员处理失败消息
+   * 可以扩展为发送邮件、短信、钉钉等通知
+   * 
+   * @param orderMessage 失败的订单消息
+   */
+  private void notifyAdministrator(OrderMessage orderMessage) {
+    try {
+      // 这里可以集成邮件、短信、钉钉等通知服务
+      log.error("🚨🚨🚨 ADMIN ALERT 🚨🚨🚨");
+      log.error("订单处理最终失败，需要人工介入！");
+      log.error("消息ID: {}", orderMessage.getMessageId());
+      log.error("订单ID: {}", orderMessage.getOrderId());
+      log.error("用户ID: {}", orderMessage.getUserId());
+      log.error("优惠券ID: {}", orderMessage.getVoucherId());
+      log.error("重试次数: {}", orderMessage.getRetryCount());
+      log.error("创建时间: {}", orderMessage.getCreateTime());
+      log.error("请及时查看并处理此订单！");
+      log.error("🚨🚨🚨 END ALERT 🚨🚨🚨");
+
+      // TODO: 集成实际的通知服务
+      // emailService.sendAdminAlert(orderMessage);
+      // smsService.sendAdminAlert(orderMessage);
+      // dingTalkService.sendAdminAlert(orderMessage);
+
+    } catch (Exception e) {
+      log.error("发送管理员通知失败", e);
     }
   }
 

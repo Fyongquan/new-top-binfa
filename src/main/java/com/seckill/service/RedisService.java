@@ -30,8 +30,6 @@ public class RedisService {
   @Qualifier("recoverStockScript")
   private DefaultRedisScript<Long> recoverStockScript;
 
-
-
   /**
    * 初始化秒杀库存
    * 
@@ -42,12 +40,14 @@ public class RedisService {
     String stockKey = "seckill:stock:" + voucherId;
     String orderKey = "seckill:order:" + voucherId;
 
-    // 存储为字符串，确保Lua脚本能正确读取
-    redisTemplate.opsForValue().set(stockKey, stock.toString());
+    // 存储为字符串，确保Lua脚本能正确读取，设置24小时过期时间
+    redisTemplate.opsForValue().set(stockKey, stock.toString(), 24, TimeUnit.HOURS);
     // 清理旧的购买记录
     redisTemplate.delete(orderKey);
+    // 为用户购买记录设置过期时间（25小时，比库存稍长一些）
+    redisTemplate.expire(orderKey, 25, TimeUnit.HOURS);
 
-    log.info("初始化优惠券{}库存: {}", voucherId, stock);
+    log.info("初始化优惠券{}库存: {} (TTL: 24小时)", voucherId, stock);
   }
 
   /**
@@ -170,6 +170,33 @@ public class RedisService {
   }
 
   /**
+   * 设置秒杀活动过期时间
+   * 
+   * @param voucherId     优惠券ID
+   * @param expireSeconds 过期时间（秒）
+   */
+  public void setSeckillExpire(Long voucherId, long expireSeconds) {
+    String stockKey = "seckill:stock:" + voucherId;
+    String orderKey = "seckill:order:" + voucherId;
+
+    redisTemplate.expire(stockKey, expireSeconds, TimeUnit.SECONDS);
+    redisTemplate.expire(orderKey, expireSeconds + 3600, TimeUnit.SECONDS); // 购买记录比库存多保存1小时
+
+    log.info("设置优惠券{}过期时间: {}秒", voucherId, expireSeconds);
+  }
+
+  /**
+   * 获取秒杀数据剩余过期时间
+   * 
+   * @param voucherId 优惠券ID
+   * @return 剩余时间（秒），-1表示没有过期时间，-2表示key不存在
+   */
+  public Long getSeckillTTL(Long voucherId) {
+    String stockKey = "seckill:stock:" + voucherId;
+    return redisTemplate.getExpire(stockKey, TimeUnit.SECONDS);
+  }
+
+  /**
    * 清理过期的秒杀数据
    * 
    * @param voucherId 优惠券ID
@@ -217,7 +244,7 @@ public class RedisService {
     Object rawStock = redisTemplate.opsForHash().get(debugKey, "raw_stock");
     Object parsedStock = redisTemplate.opsForHash().get(debugKey, "parsed_stock");
     Object error = redisTemplate.opsForHash().get(debugKey, "error");
-    
+
     log.info("🐛 === Lua脚本详细调试信息 ===");
     log.info("🐛 脚本中使用的库存键: {}", stockKeyUsed);
     log.info("🐛 键是否存在(EXISTS): {}", keyExists);
@@ -226,7 +253,5 @@ public class RedisService {
     log.info("🐛 错误信息: {}", error);
     log.info("🐛 =============================");
   }
-
-
 
 }

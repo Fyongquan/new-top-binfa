@@ -89,6 +89,20 @@ public interface OrderMapper {
   int countByUserIdAndVoucherId(@Param("userId") Long userId, @Param("voucherId") Long voucherId);
 
   /**
+   * 使用状态机模式更新订单状态（带前置状态校验）
+   * 实现幂等性的核心方法
+   * 
+   * @param orderId               订单ID
+   * @param newStatus             新状态
+   * @param expectedCurrentStatus 期望的当前状态
+   * @return 影响行数（1-成功，0-失败）
+   */
+  int updateStatusWithPreviousCheck(
+      @Param("orderId") Long orderId,
+      @Param("newStatus") Integer newStatus,
+      @Param("expectedCurrentStatus") Integer expectedCurrentStatus);
+
+  /**
    * 批量更新订单状态
    * 
    * @param orderIds 订单ID列表
