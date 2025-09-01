@@ -1,0 +1,150 @@
+# 编译输出
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE 文件
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Java 相关
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven 相关
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
+# Gradle 相关
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Spring Boot 相关
+spring.log
+logs/
+application-local.yml
+application-dev.yml
+
+# 测试相关
+test-output/
+*.tmp
+*.temp
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 环境变量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 临时文件
+*~
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Node.js (如果项目包含前端)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python 相关 (测试脚本)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 配置文件 (包含敏感信息)
+config/local/
+config/dev/
+config/prod/
+
+# Docker 相关
+.dockerignore
+docker-compose.override.yml
+
+# 其他
+*.pid
+*.seed
+*.pid.lock
+.nyc_output
+.cache
+.parcel-cache
+
+# JetBrains 特定
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Eclipse 相关
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+.project
+.classpath
+
+# NetBeans 相关
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# 性能测试结果
+performance-results/
+jmeter-results/
+*.jtl
+
+# 备份文件
+*.backup
+*.old
+*_backup
+*_old
+.cursorrules

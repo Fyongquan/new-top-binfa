@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.seckill.mapper.OrderMapper">
+
+  <!-- 结果映射 -->
+  <resultMap id="OrderResultMap" type="Order">
+    <id column="id" property="id"/>
+    <result column="user_id" property="userId"/>
+    <result column="voucher_id" property="voucherId"/>
+    <result column="status" property="status"/>
+    <result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
+  </resultMap>
+
+  <!-- 基础SQL片段 -->
+  <sql id="Base_Column_List">
+        id, user_id, voucher_id, status, create_time, update_time
+  </sql>
+
+  <!-- 根据ID查询 -->
+  <select id="selectById" resultMap="OrderResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE id = #{id}
+  </select>
+
+  <!-- 插入订单 -->
+  <insert id="insert" parameterType="Order">
+        INSERT INTO orders (
+            id, user_id, voucher_id, status, create_time, update_time
+        ) VALUES (
+            #{id}, #{userId}, #{voucherId}, #{status}, #{createTime}, #{updateTime}
+        )
+  </insert>
+
+  <!-- 根据ID更新 -->
+  <update id="updateById" parameterType="Order">
+        UPDATE orders
+        SET user_id = #{userId},
+            voucher_id = #{voucherId},
+            status = #{status},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+  </update>
+
+  <!-- 根据ID删除 -->
+  <delete id="deleteById">
+        DELETE FROM orders WHERE id = #{id}
+  </delete>
+
+  <!-- 根据用户ID和优惠券ID查询订单 -->
+  <select id="findByUserIdAndVoucherId" resultMap="OrderResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE user_id = #{userId} AND voucher_id = #{voucherId}
+        LIMIT 1
+  </select>
+
+  <!-- 根据用户ID查询订单列表 -->
+  <select id="selectByUserId" resultMap="OrderResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+  </select>
+
+  <!-- 根据优惠券ID查询订单列表 -->
+  <select id="selectByVoucherId" resultMap="OrderResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE voucher_id = #{voucherId}
+        ORDER BY create_time DESC
+  </select>
+
+  <!-- 根据状态查询订单列表 -->
+  <select id="selectByStatus" resultMap="OrderResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE status = #{status}
+        ORDER BY create_time DESC
+  </select>
+
+  <!-- 统计用户在指定优惠券上的订单数量 -->
+  <select id="countByUserIdAndVoucherId" resultType="int">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE user_id = #{userId} AND voucher_id = #{voucherId}
+  </select>
+
+  <!-- 批量更新订单状态 -->
+  <update id="batchUpdateStatus">
+        UPDATE orders
+        SET status = #{status},
+            update_time = NOW()
+        WHERE id IN
+    <foreach item="orderId" collection="orderIds" open="(" separator="," close=")">
+            #{orderId}
+    </foreach>
+  </update>
+
+</mapper>

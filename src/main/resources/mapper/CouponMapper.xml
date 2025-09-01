@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.seckill.mapper.CouponMapper">
+
+  <!-- 结果映射 -->
+  <resultMap id="CouponResultMap" type="Coupon">
+    <id column="id" property="id"/>
+    <result column="name" property="name"/>
+    <result column="stock" property="stock"/>
+    <result column="total_stock" property="totalStock"/>
+    <result column="start_time" property="startTime"/>
+    <result column="end_time" property="endTime"/>
+    <result column="create_time" property="createTime"/>
+    <result column="update_time" property="updateTime"/>
+  </resultMap>
+
+  <!-- 基础SQL片段 -->
+  <sql id="Base_Column_List">
+        id, name, stock, total_stock, start_time, end_time, create_time, update_time
+  </sql>
+
+  <!-- 根据ID查询 -->
+  <select id="selectById" resultMap="CouponResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM coupons
+        WHERE id = #{id}
+  </select>
+
+  <!-- 插入优惠券 -->
+  <insert id="insert" parameterType="Coupon" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO coupons (
+            name, stock, total_stock, start_time, end_time, create_time, update_time
+        ) VALUES (
+            #{name}, #{stock}, #{totalStock}, #{startTime}, #{endTime}, #{createTime}, #{updateTime}
+        )
+  </insert>
+
+  <!-- 根据ID更新 -->
+  <update id="updateById" parameterType="Coupon">
+        UPDATE coupons
+        SET name = #{name},
+            stock = #{stock},
+            total_stock = #{totalStock},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+  </update>
+
+  <!-- 根据ID删除 -->
+  <delete id="deleteById">
+        DELETE FROM coupons WHERE id = #{id}
+  </delete>
+
+  <!-- 查询所有优惠券 -->
+  <select id="selectAll" resultMap="CouponResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM coupons
+        ORDER BY create_time DESC
+  </select>
+
+  <!-- 减少库存（原子操作） -->
+  <update id="decreaseStock">
+        UPDATE coupons
+        SET stock = stock - #{count},
+            update_time = NOW()
+        WHERE id = #{id} AND stock >= #{count}
+  </update>
+
+  <!-- 增加库存（原子操作） -->
+  <update id="increaseStock">
+        UPDATE coupons
+        SET stock = stock + #{count},
+            update_time = NOW()
+        WHERE id = #{id}
+  </update>
+
+  <!-- 查询有效的优惠券 -->
+  <select id="selectValidCoupons" resultMap="CouponResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM coupons
+        WHERE start_time   <![CDATA[<=]]> NOW()
+          AND end_time   <![CDATA[>=]]> NOW()
+          AND stock > 0
+        ORDER BY start_time ASC
+  </select>
+
+</mapper>

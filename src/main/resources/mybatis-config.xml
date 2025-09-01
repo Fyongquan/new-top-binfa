@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+  <settings>
+    <!-- 开启驼峰命名自动映射 -->
+    <setting name="mapUnderscoreToCamelCase" value="true"/>
+
+    <!-- 开启延迟加载 -->
+    <setting name="lazyLoadingEnabled" value="true"/>
+    <setting name="aggressiveLazyLoading" value="false"/>
+
+    <!-- 开启二级缓存 -->
+    <setting name="cacheEnabled" value="true"/>
+
+    <!-- 开启自动生成主键 -->
+    <setting name="useGeneratedKeys" value="true"/>
+
+    <!-- 设置默认执行器类型 -->
+    <setting name="defaultExecutorType" value="REUSE"/>
+
+    <!-- 设置默认语句超时时间 -->
+    <setting name="defaultStatementTimeout" value="30"/>
+
+    <!-- 日志实现 -->
+    <setting name="logImpl" value="SLF4J"/>
+  </settings>
+
+  <typeAliases>
+    <!-- 实体类别名 -->
+    <typeAlias alias="Coupon" type="com.seckill.entity.Coupon"/>
+    <typeAlias alias="Order" type="com.seckill.entity.Order"/>
+  </typeAliases>
+</configuration>
