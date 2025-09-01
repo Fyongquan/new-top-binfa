@@ -29,9 +29,9 @@ public class RedisConfig {
     template.setKeySerializer(new StringRedisSerializer());
     template.setHashKeySerializer(new StringRedisSerializer());
 
-    // 设置value的序列化方式
-    template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-    template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+    // 设置value的序列化方式 - 使用String序列化器避免JSON双重编码
+    template.setValueSerializer(new StringRedisSerializer());
+    template.setHashValueSerializer(new StringRedisSerializer());
 
     template.afterPropertiesSet();
     return template;
@@ -59,19 +59,5 @@ public class RedisConfig {
     return script;
   }
 
-  @Bean("testScript")
-  public DefaultRedisScript<String> testScript() {
-    DefaultRedisScript<String> script = new DefaultRedisScript<>();
-    script.setLocation(new ClassPathResource("lua/test.lua"));
-    script.setResultType(String.class);
-    return script;
-  }
 
-  @Bean("seckillDebugScript")
-  public DefaultRedisScript<Long> seckillDebugScript() {
-    DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-    script.setLocation(new ClassPathResource("lua/seckill-debug.lua"));
-    script.setResultType(Long.class);
-    return script;
-  }
 }

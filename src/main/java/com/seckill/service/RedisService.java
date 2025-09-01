@@ -30,13 +30,7 @@ public class RedisService {
   @Qualifier("recoverStockScript")
   private DefaultRedisScript<Long> recoverStockScript;
 
-  @Resource
-  @Qualifier("testScript")
-  private DefaultRedisScript<String> testScript;
 
-  @Resource
-  @Qualifier("seckillDebugScript")
-  private DefaultRedisScript<Long> seckillDebugScript;
 
   /**
    * 初始化秒杀库存
@@ -82,10 +76,6 @@ public class RedisService {
           limit.toString()); // ARGV[3]
 
       log.info("秒杀脚本执行结果 - 用户: {}, 优惠券: {}, 结果: {}", userId, voucherId, result);
-
-      // 立即查看脚本执行后的调试信息
-      debugRedisData(voucherId);
-
       return result;
     } catch (Exception e) {
       log.error("执行秒杀脚本异常", e);
@@ -164,7 +154,7 @@ public class RedisService {
    */
   public void setOrderStatus(Long orderId, Integer status, long expireSeconds) {
     String orderStatusKey = "order:status:" + orderId;
-    redisTemplate.opsForValue().set(orderStatusKey, status, expireSeconds, TimeUnit.SECONDS);
+    redisTemplate.opsForValue().set(orderStatusKey, status.toString(), expireSeconds, TimeUnit.SECONDS);
   }
 
   /**
@@ -221,93 +211,22 @@ public class RedisService {
     log.info("📦 库存键: {}", stockKey);
     log.info("📦 库存原始数据: {} (类型: {})", stockData, stockData != null ? stockData.getClass().getSimpleName() : "null");
 
-    // 读取Lua脚本的调试信息
+    // 读取Lua脚本的详细调试信息
+    Object stockKeyUsed = redisTemplate.opsForHash().get(debugKey, "stockKey");
+    Object keyExists = redisTemplate.opsForHash().get(debugKey, "key_exists");
     Object rawStock = redisTemplate.opsForHash().get(debugKey, "raw_stock");
     Object parsedStock = redisTemplate.opsForHash().get(debugKey, "parsed_stock");
-    log.info("📦 Lua脚本读取的原始值: {}", rawStock);
-    log.info("📦 Lua脚本解析后的值: {}", parsedStock);
+    Object error = redisTemplate.opsForHash().get(debugKey, "error");
+    
+    log.info("🐛 === Lua脚本详细调试信息 ===");
+    log.info("🐛 脚本中使用的库存键: {}", stockKeyUsed);
+    log.info("🐛 键是否存在(EXISTS): {}", keyExists);
+    log.info("🐛 GET命令返回值: {}", rawStock);
+    log.info("🐛 tonumber解析结果: {}", parsedStock);
+    log.info("🐛 错误信息: {}", error);
+    log.info("🐛 =============================");
   }
 
-  /**
-   * 测试KEYS参数传递是否正确
-   * 
-   * @return 测试结果
-   */
-  public String testKeysParameter() {
-    try {
-      String testKey = "test:keys:validation";
-      String testValue = "SUCCESS";
 
-      java.util.List<String> keys = java.util.Arrays.asList(testKey);
 
-      log.info("🧪 测试KEYS参数传递 - KEY: {}, VALUE: {}", testKey, testValue);
-
-      String result = redisTemplate.execute(
-          testScript,
-          keys, // 传递KEYS参数
-          testValue); // ARGV[1]
-
-      log.info("🧪 KEYS参数测试结果: {}", result);
-
-      return result;
-    } catch (Exception e) {
-      log.error("🧪 KEYS参数测试失败", e);
-      return "ERROR";
-    }
-  }
-
-  /**
-   * 执行调试版本的秒杀脚本
-   * 
-   * @param voucherId 优惠券ID
-   * @param userId    用户ID
-   * @param limit     限购数量
-   * @return 执行结果
-   */
-  public Long executeSeckillDebug(Long voucherId, Long userId, Integer limit) {
-    try {
-      java.util.List<String> keys = java.util.Arrays.asList(
-          "seckill:stock:" + voucherId, // KEYS[1]
-          "seckill:order:" + voucherId // KEYS[2]
-      );
-
-      log.info("🐛 执行调试秒杀脚本 - 用户: {}, 优惠券: {}, KEYS: {}", userId, voucherId, keys);
-
-      Long result = redisTemplate.execute(
-          seckillDebugScript,
-          keys,
-          voucherId.toString(),
-          userId.toString(),
-          limit.toString());
-
-      log.info("🐛 调试秒杀脚本结果: {}", result);
-
-      // 读取详细的调试信息
-      showSeckillDebugInfo(voucherId);
-
-      return result;
-    } catch (Exception e) {
-      log.error("🐛 调试秒杀脚本异常", e);
-      return -1L;
-    }
-  }
-
-  /**
-   * 显示秒杀调试信息
-   * 
-   * @param voucherId 优惠券ID
-   */
-  private void showSeckillDebugInfo(Long voucherId) {
-    String debugKey = "seckill:debug:" + voucherId;
-    java.util.Map<Object, Object> debugInfo = redisTemplate.opsForHash().entries(debugKey);
-
-    log.info("🐛 ========== 秒杀调试信息 ==========");
-    log.info("🐛 优惠券ID: {}", voucherId);
-
-    for (java.util.Map.Entry<Object, Object> entry : debugInfo.entrySet()) {
-      log.info("🐛 {}: {}", entry.getKey(), entry.getValue());
-    }
-
-    log.info("🐛 ====================================");
-  }
 }
